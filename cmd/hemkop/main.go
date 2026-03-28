@@ -11,6 +11,8 @@ import (
 	"github.com/ErikHellman/hemkop-cli/pkg/client"
 )
 
+var version = "dev"
+
 func main() {
 	args := os.Args[1:]
 	username, password := loadCredentials()
@@ -46,6 +48,22 @@ done:
 		os.Exit(1)
 	}
 
+	command := args[0]
+	args = args[1:]
+
+	// Commands that don't require authentication
+	switch command {
+	case "version":
+		fmt.Println(version)
+		return
+	case "update":
+		runUpdate()
+		return
+	case "help":
+		printUsage()
+		return
+	}
+
 	if username == "" || password == "" {
 		fatal("credentials required: set HEMKOP_USERNAME/HEMKOP_PASSWORD env vars, use -u/-p flags, or create a .env file")
 	}
@@ -56,9 +74,6 @@ done:
 		fatal("login failed: %v", err)
 	}
 
-	command := args[0]
-	args = args[1:]
-
 	switch command {
 	case "store":
 		runStore(c, args)
@@ -66,8 +81,6 @@ done:
 		runProduct(c, args)
 	case "cart":
 		runCart(c, args)
-	case "help":
-		printUsage()
 	default:
 		fatal("unknown command: %s", command)
 	}
@@ -292,6 +305,8 @@ Commands:
   cart add <code> [qty]      Add product to cart (default qty: 1)
   cart remove <code>         Remove product from cart
   cart clear                 Clear entire cart
+  version                    Show version
+  update                     Update to the latest release
   help                       Show this help`)
 }
 

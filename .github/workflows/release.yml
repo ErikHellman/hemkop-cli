@@ -40,7 +40,7 @@ jobs:
               output="${output}.exe"
             fi
             echo "Building ${os}/${arch}..."
-            GOOS="$os" GOARCH="$arch" go build -ldflags="-s -w" -o "$output" ./cmd/hemkop/
+            GOOS="$os" GOARCH="$arch" go build -ldflags="-s -w -X main.version=${GITHUB_REF_NAME}" -o "$output" ./cmd/hemkop/
           done
 
       - name: Create release
