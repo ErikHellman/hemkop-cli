@@ -59,6 +59,9 @@ done:
 	case "update":
 		runUpdate()
 		return
+	case "install-skill":
+		runInstallSkill()
+		return
 	case "help":
 		printUsage()
 		return
@@ -307,6 +310,7 @@ Commands:
   cart clear                 Clear entire cart
   version                    Show version
   update                     Update to the latest release
+  install-skill              Install Claude Code skill for hemkop CLI
   help                       Show this help`)
 }
 
