@@ -1,0 +1,98 @@
+name: Integration Test
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1' # Weekly on Monday at 06:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run unit tests
+        run: go test ./pkg/crypto/
+
+      - name: Run integration tests
+        env:
+          HEMKOP_USERNAME: ${{ secrets.HEMKOP_USERNAME }}
+          HEMKOP_PASSWORD: ${{ secrets.HEMKOP_PASSWORD }}
+        run: |
+          echo "HEMKOP_USERNAME=\"$HEMKOP_USERNAME\"" > .env
+          echo "HEMKOP_PASSWORD=\"$HEMKOP_PASSWORD\"" >> .env
+          go test -tags=integration -v ./pkg/client/
+
+      - name: Build CLI
+        run: go build -o hemkop ./cmd/hemkop/
+
+      - name: Test store list
+        env:
+          HEMKOP_USERNAME: ${{ secrets.HEMKOP_USERNAME }}
+          HEMKOP_PASSWORD: ${{ secrets.HEMKOP_PASSWORD }}
+        run: |
+          output=$(./hemkop store list stockholm 2>&1)
+          echo "$output"
+          echo "$output" | grep -q "Hemköp Stockholm"
+
+      - name: Test store show
+        env:
+          HEMKOP_USERNAME: ${{ secrets.HEMKOP_USERNAME }}
+          HEMKOP_PASSWORD: ${{ secrets.HEMKOP_PASSWORD }}
+        run: |
+          output=$(./hemkop store show 4297 2>&1)
+          echo "$output"
+          echo "$output" | grep -q "Hemköp Stockholm"
+
+      - name: Test product search
+        env:
+          HEMKOP_USERNAME: ${{ secrets.HEMKOP_USERNAME }}
+          HEMKOP_PASSWORD: ${{ secrets.HEMKOP_PASSWORD }}
+        run: |
+          output=$(./hemkop product search mjölk 2>&1)
+          echo "$output"
+          echo "$output" | grep -q "kr"
+
+      - name: Test product show
+        env:
+          HEMKOP_USERNAME: ${{ secrets.HEMKOP_USERNAME }}
+          HEMKOP_PASSWORD: ${{ secrets.HEMKOP_PASSWORD }}
+        run: |
+          code=$(./hemkop product search mjölk 2>/dev/null | awk 'NR==2{print $1}')
+          output=$(./hemkop product show "$code" 2>&1)
+          echo "$output"
+          echo "$output" | grep -q "Price:"
+
+      - name: Test cart add, list, remove, clear
+        env:
+          HEMKOP_USERNAME: ${{ secrets.HEMKOP_USERNAME }}
+          HEMKOP_PASSWORD: ${{ secrets.HEMKOP_PASSWORD }}
+        run: |
+          code=$(./hemkop product search mjölk 2>/dev/null | awk 'NR==2{print $1}')
+
+          echo "--- Adding to cart ---"
+          output=$(./hemkop cart add "$code" 2>&1)
+          echo "$output"
+          echo "$output" | grep -q "Total: 1"
+
+          echo "--- Listing cart ---"
+          output=$(./hemkop cart list 2>&1)
+          echo "$output"
+          echo "$output" | grep -q "$code"
+
+          echo "--- Removing from cart ---"
+          output=$(./hemkop cart remove "$code" 2>&1)
+          echo "$output"
+          echo "$output" | grep -q "empty\|Total: 0"
+
+          echo "--- Clearing cart ---"
+          output=$(./hemkop cart clear 2>&1)
+          echo "$output"
+          echo "$output" | grep -q "empty"
